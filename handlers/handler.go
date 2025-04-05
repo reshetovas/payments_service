@@ -28,7 +28,11 @@ func NewPaymentHandler(service *services.PaymentService, parse *services.ParseSe
 
 // method create
 func (h *PaymentHandler) CreatePayment(w http.ResponseWriter, r *http.Request) {
-	log.Info().Msg("CreatePayment called")
+	log.Info().
+		Str("method:", r.Method).
+		Str("endpoint", "/payment").
+		Msg("Processing payment request")
+
 	var payment services.Payment
 	err := json.NewDecoder(r.Body).Decode(&payment)
 	if err != nil {
@@ -157,6 +161,7 @@ func (h *PaymentHandler) GetPaymentInCurrency(w http.ResponseWriter, r *http.Req
 	// Получаем платеж в указанной валюте
 	payment, err := h.service.GetPaymentInCurrency(id, currency)
 	if err != nil {
+		log.Error().Err(err).Msg("Error GetPaymentInCurrency")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

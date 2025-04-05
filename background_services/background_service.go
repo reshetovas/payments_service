@@ -2,11 +2,12 @@ package background_service
 
 import (
 	"context"
-	"fmt"
 	"payments_service/notifications"
 	"payments_service/storage"
 	"strings"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 type BackgroundService struct {
@@ -33,12 +34,12 @@ LOOP:
 		case <-ticker.C:
 		}
 
-		fmt.Println("start check")
+		log.Info().Msg("start check")
 		storagePayments, err := b.storage.GetPendingPayments()
 		if err != nil {
 			return err
 		}
-		fmt.Println(len(storagePayments))
+		log.Info().Msgf("%d Objects found", len(storagePayments))
 		for _, p := range storagePayments {
 			b.PaymentsStateMachine(p)
 			//fmt.Println(p)
@@ -53,12 +54,12 @@ func (b *BackgroundService) PaymentsStateMachine(payment storage.Payment) {
 
 	switch strings.ToLower(payment.State) {
 	case "new":
-		fmt.Printf("Start 'New' with payment %d", payment.ID)
+		log.Info().Msgf("Start 'New' with payment %d", payment.ID)
 		if b.validation1(payment) {
 			payment.State = "Waiting_for_validation2"
 			err := b.storage.UpdatePayment(payment)
 			if err != nil {
-				fmt.Println(err)
+				log.Error().Err(err)
 			}
 		} else {
 			payment.State = "Faild"
@@ -66,7 +67,7 @@ func (b *BackgroundService) PaymentsStateMachine(payment storage.Payment) {
 		}
 
 	case "waiting_for_validation2":
-		fmt.Printf("Start 'Waiting_for_validation2' with payment %d", payment.ID)
+		log.Info().Msgf("Start 'Waiting_for_validation2' with payment %d", payment.ID)
 		if now.Sub(payment.CreatedAt) > 60*time.Minute {
 			b.storage.DeletePayment(payment.ID)
 		} else if payment.Attempts >= 3 {
@@ -87,7 +88,7 @@ func (b *BackgroundService) validation1(payment storage.Payment) bool {
 
 	//items len validation
 	if len(payment.Items) == 0 {
-		fmt.Println("Error. Validation1. There are not items")
+		log.Error().Msg("Error. Validation1. There are not items")
 		return false
 	}
 
@@ -98,7 +99,7 @@ func (b *BackgroundService) validation1(payment storage.Payment) bool {
 	}
 
 	if payment.Amount != calculatedTotal {
-		fmt.Printf("Error. Validation1. payment amount %.2f not equal items sum %.2f\n", payment.Amount, calculatedTotal)
+		log.Error().Msgf("Error. Validation1. payment amount %.2f not equal items sum %.2f\n", payment.Amount, calculatedTotal)
 		return false
 	}
 
@@ -107,7 +108,7 @@ func (b *BackgroundService) validation1(payment storage.Payment) bool {
 
 func (b *BackgroundService) validation2(payment storage.Payment) bool {
 	if payment.Amount >= 88005553535 {
-		fmt.Println("Error. Validation2")
+		log.Error().Msg("Error. Validation2")
 		return false
 	}
 
