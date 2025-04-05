@@ -7,6 +7,7 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/rs/zerolog/log"
 )
 
 type Payment struct {
@@ -57,7 +58,7 @@ type StorageActions interface {
 // method get
 func (s *SQLiteStorage) GetPayments() ([]Payment, error) {
 	//query to db
-	fmt.Println("GetPayments called in storage")
+	log.Info().Msg("GetPayments called in storage")
 	rows, err := s.dbProperty.Query("SELECT id, amount, description, created_at, state, attempts FROM payments")
 	if err != nil {
 		return nil, err
@@ -86,7 +87,7 @@ func (s *SQLiteStorage) GetPayments() ([]Payment, error) {
 
 // method create
 func (s *SQLiteStorage) CreatePayment(payment Payment) (int, error) {
-	fmt.Println("CreatePayment called in storage")
+	log.Info().Msg("CreatePayment called in storage")
 
 	query := `INSERT INTO payments (amount, description, 
 	created_at, currency, shop_id, address) VALUES (?, ?, ?, ?, ?, ?)`
@@ -102,13 +103,13 @@ func (s *SQLiteStorage) CreatePayment(payment Payment) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	fmt.Println("Payment created, id:", id)
+	log.Info().Msgf("Payment created, id: %d", id)
 	return int(id), nil
 }
 
 // method update put
 func (s *SQLiteStorage) UpdatePayment(payment Payment) error {
-	fmt.Println("UpdatePayment called in storage")
+	log.Info().Msg("UpdatePayment called in storage")
 	result, err := s.dbProperty.Exec(
 		"UPDATE payments SET amount = ?, description = ?, created_at = ?, state = ? WHERE id = ?",
 		payment.Amount, payment.Description, payment.CreatedAt, payment.State, payment.ID,
@@ -129,7 +130,7 @@ func (s *SQLiteStorage) UpdatePayment(payment Payment) error {
 }
 
 func (s *SQLiteStorage) PartialUpdatePayment(id int, updates map[string]interface{}) error {
-	fmt.Println("PartialUpdatePayment called in storage")
+	log.Info().Msg("PartialUpdatePayment called in storage")
 	query := "Update payments SET "
 	args := []interface{}{}
 	i := 1
@@ -160,7 +161,7 @@ func (s *SQLiteStorage) PartialUpdatePayment(id int, updates map[string]interfac
 
 // method delete
 func (s *SQLiteStorage) DeletePayment(id int) error {
-	fmt.Println("DeletePayment called in storage")
+	log.Info().Msg("DeletePayment called in storage")
 	result, err := s.dbProperty.Exec("DELETE FROM payments WHERE id = ?", id)
 	if err != nil {
 		return err
@@ -179,7 +180,7 @@ func (s *SQLiteStorage) DeletePayment(id int) error {
 
 // method get by id
 func (s *SQLiteStorage) GetPaymentByID(id int) (Payment, error) {
-	fmt.Println("GetPaymentsByID called in storage")
+	log.Info().Msg("GetPaymentsByID called in storage")
 
 	//query to db
 	var p Payment
@@ -197,7 +198,7 @@ func (s *SQLiteStorage) GetPaymentByID(id int) (Payment, error) {
 }
 
 func (s *SQLiteStorage) CreateItem(item Item) error {
-	fmt.Println("CreateItem called in storage")
+	log.Info().Msg("CreateItem called in storage")
 	_, err := s.dbProperty.Exec(`
         INSERT INTO items (payment_id, name, price, quantity)
         VALUES (?, ?, ?, ?)`,
@@ -206,7 +207,7 @@ func (s *SQLiteStorage) CreateItem(item Item) error {
 }
 
 func (s *SQLiteStorage) GetItemsByPaymentID(paymentID int) ([]Item, error) {
-	fmt.Println("GetItemsByPaymentID called in storage")
+	log.Info().Msg("GetItemsByPaymentID called in storage")
 	rows, err := s.dbProperty.Query(`
         SELECT id, name, payment_id, price, quantity FROM items where payment_id = ?`,
 		paymentID)
@@ -231,7 +232,7 @@ func (s *SQLiteStorage) GetItemsByPaymentID(paymentID int) ([]Item, error) {
 
 // pyments NOT IN ('CLOSED', 'FAILED')
 func (s *SQLiteStorage) GetPendingPayments() ([]Payment, error) {
-	fmt.Println("GetPendingPayments called in storage")
+	log.Info().Msg("GetPendingPayments called in storage")
 	query := `SELECT id, amount, state, attempts, created_at  FROM payments WHERE state NOT IN ('CLOSED', 'FAILED')`
 	rows, err := s.dbProperty.Query(query)
 	if err != nil {

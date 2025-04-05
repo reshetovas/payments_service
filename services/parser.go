@@ -3,10 +3,11 @@ package services
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
 	"os"
 	"payments_service/storage"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 type Item struct {
@@ -39,11 +40,11 @@ func NewParseService(storage storage.StorageActions) *ParseService {
 
 func (p ParseService) ParsePaymentsFile(fileName string) error {
 
-	fmt.Println("start parsing")
+	log.Info().Msg("start parsing")
 
 	file, err := os.Open(fileName)
 	if err != nil {
-		fmt.Println("Error:", err)
+		log.Error().Err(err).Msg("Error open file")
 	}
 	defer file.Close()
 
@@ -89,7 +90,7 @@ func (p ParseService) savePaymentToDB(payment PaymentData) error {
 	// Создаём платёж в БД
 	paymentID, err := p.storage.CreatePayment(paymentInput)
 	if err != nil {
-		fmt.Println(err)
+		log.Error().Err(err).Msg("Error savig payment in parser")
 		return err
 	}
 

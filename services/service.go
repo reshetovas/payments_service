@@ -2,10 +2,11 @@ package services
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"payments_service/storage"
+
+	"github.com/rs/zerolog/log"
 )
 
 type Payment struct {
@@ -41,7 +42,7 @@ func NewPaymentService(storage storage.StorageActions, currencyService CurrencyC
 
 // method create
 func (s *PaymentService) CreatePayment(payment Payment) (int, error) {
-	fmt.Println("CreatePayment called in service")
+	log.Info().Msg("CreatePayment called in service")
 	if payment.ID == 0 {
 		return 0, errors.New("id is required")
 	}
@@ -63,7 +64,7 @@ func (s *PaymentService) CreatePayment(payment Payment) (int, error) {
 
 // method get
 func (s *PaymentService) GetPayments() ([]storage.Payment, error) {
-	fmt.Println("GetPayments called in service")
+	log.Info().Msg("GetPayments called in service")
 	storagePayments, err := s.storage.GetPayments()
 	if err != nil {
 		return nil, err
@@ -86,7 +87,7 @@ func (s *PaymentService) GetPayments() ([]storage.Payment, error) {
 
 // method update
 func (s *PaymentService) UpdatePayment(payment Payment) error {
-	fmt.Println("UpdatePayment called in service")
+	log.Info().Msg("UpdatePayment called in service")
 	if payment.ID == 0 {
 		return errors.New("id is required")
 	}
@@ -102,7 +103,7 @@ func (s *PaymentService) UpdatePayment(payment Payment) error {
 }
 
 func (s *PaymentService) PatchPayment(id int, updates map[string]interface{}) error {
-	fmt.Println("UpdatePayment called in service")
+	log.Info().Msg("UpdatePayment called in service")
 	if id == 0 {
 		return errors.New("id is required")
 	}
@@ -112,7 +113,7 @@ func (s *PaymentService) PatchPayment(id int, updates map[string]interface{}) er
 
 // method delete
 func (s *PaymentService) DeletePayment(id int) error {
-	fmt.Println("DeletePayment called in service")
+	log.Info().Msg("DeletePayment called in service")
 	if id == 0 {
 		return errors.New("id is required")
 	}
@@ -141,7 +142,7 @@ func (s *PaymentService) GetPaymentInCurrency(id int, currency string) (Payment,
 }
 
 func (s *PaymentService) PaymentClose(id int) error {
-	fmt.Println("UpdatePayment called in service")
+	log.Info().Msg("UpdatePayment called in service")
 	if id == 0 {
 		return errors.New("id is required")
 	}
