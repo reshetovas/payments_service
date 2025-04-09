@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -27,7 +28,13 @@ func InitLogger(logLevel string) {
 
 	//setting up a global logger
 	//zerolog.New - create new logger
-	log.Logger = zerolog.New(os.Stdout).
+
+	file, _ := os.OpenFile("app.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	console := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: "15:04:05"}
+
+	multi := io.MultiWriter(console, file)
+
+	log.Logger = zerolog.New(multi).
 		With().
 		Timestamp().                       //add timestamp
 		Str("service", "payment-service"). //add a general attribute

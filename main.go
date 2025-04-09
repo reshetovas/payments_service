@@ -16,6 +16,7 @@ import (
 	"payments_service/external/currency_service"
 	"payments_service/handlers"
 	"payments_service/logger"
+	"payments_service/routes"
 	"payments_service/services"
 	"payments_service/storage"
 
@@ -62,12 +63,17 @@ func main() {
 	}
 
 	// Инициализация зависимостей
-	storage := storage.NewStorage(db)
+	paymentStorage := storage.NewPaymentStorage(db)
+	bonusStorage := storage.NewBonusStorage(db)
 	currencyService := currency_service.NewCurrencyAPI("https://api.exchangerate-api.com/v4")
-	service := services.NewPaymentService(storage, currencyService)
-	parse := services.NewParseService(storage)
-	handler := handlers.NewPaymentHandler(service, parse)
-	bckgrnd_serv := background_service.NewBackgroundService(storage)
+	paymentService := services.NewPaymentService(paymentStorage, currencyService)
+	bonusService := services.NewBonusService(bonusStorage)
+	parse := services.NewParseService(paymentStorage)
+	paymentHandler := handlers.NewPaymentHandler(paymentService, parse)
+	bonusHandler := handlers.NewBonusHandler(bonusService)
+	bckgrnd_serv := background_service.NewBackgroundService(paymentStorage)
+	paymentRoutes := routes.NewPaymentRoutes(paymentHandler)
+	bonusRoutes := routes.NewBonusRoutes(bonusHandler)
 
 	// Запуск мониторинга директории в отдельной горутине
 	dirName := "./files"
@@ -75,7 +81,7 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done() // is always executed at the end of the function
-		handler.ProcessExistingFiles(ctx, dirName)
+		paymentHandler.ProcessExistingFiles(ctx, dirName)
 	}()
 
 	//state machine
@@ -88,19 +94,20 @@ func main() {
 	}()
 
 	// Настройка маршрутов
-	r := mux.NewRouter()
-	r.HandleFunc("/payment", handler.CreatePayment).Methods("POST")
-	r.HandleFunc("/payments", handler.GetPayments).Methods("GET")
-	r.HandleFunc("/payment", handler.UpdatePayment).Methods("PUT") // Исправлено с UPDATE на PUT
-	r.HandleFunc("/payment", handler.PatchPayment).Methods("PATCH")
-	r.HandleFunc("/payment/{id}", handler.DeletePayment).Methods("DELETE")
-	r.HandleFunc("/payment/{id}", handler.GetPaymentInCurrency).Methods("GET")
-	r.HandleFunc("/payment/{id}/close", handler.PaymentClose).Methods("POST")
+	mainRouter := mux.NewRouter()
+
+	paymentRouter := paymentRoutes.PaymentRouter()
+	bonusRouter := bonusRoutes.BonusRouter()
+
+	mainRouter.PathPrefix("/payment").Handler(paymentRouter)
+	mainRouter.PathPrefix("/payments").Handler(paymentRouter)
+	mainRouter.PathPrefix("/bonus").Handler(bonusRouter)
+	mainRouter.PathPrefix("/bonuses").Handler(bonusRouter)
 
 	// Настройка HTTP-сервера
 	server := &http.Server{
 		Addr:    ":8080",
-		Handler: r,
+		Handler: mainRouter,
 	}
 
 	// Запуск HTTP-сервера в горутине

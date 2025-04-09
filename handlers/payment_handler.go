@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 
+	"payments_service/models"
 	"payments_service/services"
 
 	"github.com/gorilla/mux"
@@ -33,7 +34,7 @@ func (h *PaymentHandler) CreatePayment(w http.ResponseWriter, r *http.Request) {
 		Str("endpoint", "/payment").
 		Msg("Processing payment request")
 
-	var payment services.Payment
+	var payment models.Payment
 	err := json.NewDecoder(r.Body).Decode(&payment)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -76,7 +77,7 @@ func (h *PaymentHandler) GetPayments(w http.ResponseWriter, r *http.Request) {
 // method update
 func (h *PaymentHandler) UpdatePayment(w http.ResponseWriter, r *http.Request) {
 	log.Info().Msg("UpdatePayment called")
-	var payment services.Payment
+	var payment models.Payment
 	err := json.NewDecoder(r.Body).Decode(&payment)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
