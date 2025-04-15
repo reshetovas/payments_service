@@ -142,7 +142,7 @@ func (h *PaymentHandler) DeletePayment(w http.ResponseWriter, r *http.Request) {
 
 // method
 func (h *PaymentHandler) GetPaymentInCurrency(w http.ResponseWriter, r *http.Request) {
-	log.Info().Msg("DeletePayment called")
+	log.Info().Msg("GetPaymentInCurrency")
 	// ID from path
 	vars := mux.Vars(r)
 	idStr := vars["id"]

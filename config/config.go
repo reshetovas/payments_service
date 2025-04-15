@@ -7,7 +7,8 @@ import (
 )
 
 type Config struct {
-	LogLevel string
+	LogLevel  string
+	CacheType string
 }
 
 // Is it nevessary to do the method
