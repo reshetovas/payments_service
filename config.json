@@ -1,3 +1,4 @@
 {
-    "log_level": "debug"
+    "LogLevel": "debug",
+    "CacheType": "memory"
 }

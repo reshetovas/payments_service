@@ -16,12 +16,13 @@ import (
 	"payments_service/external/currency_service"
 	"payments_service/handlers"
 	"payments_service/logger"
+	"payments_service/routes"
 	"payments_service/services"
 	"payments_service/storage"
 
-	"github.com/gorilla/mux"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/pressly/goose/v3"
+	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
 )
 
@@ -56,18 +57,42 @@ func main() {
 		log.Fatal().Err(err).Msg("Migration failed")
 	}
 
-	// Проверка соединения
+	// DB check
 	if err = db.Ping(); err != nil {
 		log.Fatal().Err(err).Msg("error db ping")
 	}
 
+	//Redis init
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" {
+		redisAddr = "localhost:6379"
+	}
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: redisAddr,
+	})
+
+	if _, err := redisClient.Ping(ctx).Result(); err != nil {
+		log.Fatal().Err(err).Msg("Redis connection failed")
+	}
+
+	cacheType := config.CacheType
+	log.Info().Msgf("cache type: %s", cacheType)
+	log.Info().Msgf("Config: %v", config)
+
 	// Инициализация зависимостей
-	storage := storage.NewStorage(db)
+	paymentStorage := storage.NewPaymentStorage(db)
+	bonusStorage := storage.NewBonusStorage(db)
+	cachePayment := storage.NewPaymentCache(paymentStorage, cacheType, redisClient)
+	cacheBonus := storage.NewBonusCache(bonusStorage, cacheType, redisClient)
 	currencyService := currency_service.NewCurrencyAPI("https://api.exchangerate-api.com/v4")
-	service := services.NewPaymentService(storage, currencyService)
-	parse := services.NewParseService(storage)
-	handler := handlers.NewPaymentHandler(service, parse)
-	bckgrnd_serv := background_service.NewBackgroundService(storage)
+	paymentService := services.NewPaymentService(cachePayment, currencyService)
+	bonusService := services.NewBonusService(cacheBonus)
+	parse := services.NewParseService(paymentStorage)
+	paymentHandler := handlers.NewPaymentHandler(paymentService, parse)
+	bonusHandler := handlers.NewBonusHandler(bonusService)
+	bckgrnd_serv := background_service.NewBackgroundService(paymentStorage)
+	paymentRoutes := routes.NewPaymentRoutes(paymentHandler)
+	bonusRoutes := routes.NewBonusRoutes(bonusHandler)
 
 	// Запуск мониторинга директории в отдельной горутине
 	dirName := "./files"
@@ -75,7 +100,7 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done() // is always executed at the end of the function
-		handler.ProcessExistingFiles(ctx, dirName)
+		paymentHandler.ProcessExistingFiles(ctx, dirName)
 	}()
 
 	//state machine
@@ -88,19 +113,12 @@ func main() {
 	}()
 
 	// Настройка маршрутов
-	r := mux.NewRouter()
-	r.HandleFunc("/payment", handler.CreatePayment).Methods("POST")
-	r.HandleFunc("/payments", handler.GetPayments).Methods("GET")
-	r.HandleFunc("/payment", handler.UpdatePayment).Methods("PUT") // Исправлено с UPDATE на PUT
-	r.HandleFunc("/payment", handler.PatchPayment).Methods("PATCH")
-	r.HandleFunc("/payment/{id}", handler.DeletePayment).Methods("DELETE")
-	r.HandleFunc("/payment/{id}", handler.GetPaymentInCurrency).Methods("GET")
-	r.HandleFunc("/payment/{id}/close", handler.PaymentClose).Methods("POST")
+	mainRouter := routes.MainRouter(paymentRoutes, bonusRoutes)
 
 	// Настройка HTTP-сервера
 	server := &http.Server{
 		Addr:    ":8080",
-		Handler: r,
+		Handler: mainRouter,
 	}
 
 	// Запуск HTTP-сервера в горутине

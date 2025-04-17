@@ -2,6 +2,7 @@ package background_service
 
 import (
 	"context"
+	"payments_service/models"
 	"payments_service/notifications"
 	"payments_service/storage"
 	"strings"
@@ -11,11 +12,11 @@ import (
 )
 
 type BackgroundService struct {
-	storage storage.StorageActions
+	storage storage.PaymentStorageActions
 	notify  notifications.NotificationsStruct
 }
 
-func NewBackgroundService(storage storage.StorageActions) *BackgroundService {
+func NewBackgroundService(storage storage.PaymentStorageActions) *BackgroundService {
 	return &BackgroundService{
 		storage: storage,
 		notify:  notifications.NotificationsStruct{},
@@ -49,7 +50,7 @@ LOOP:
 	return nil
 }
 
-func (b *BackgroundService) PaymentsStateMachine(payment storage.Payment) {
+func (b *BackgroundService) PaymentsStateMachine(payment models.Payment) {
 	now := time.Now()
 
 	switch strings.ToLower(payment.State) {
@@ -84,7 +85,7 @@ func (b *BackgroundService) PaymentsStateMachine(payment storage.Payment) {
 	}
 }
 
-func (b *BackgroundService) validation1(payment storage.Payment) bool {
+func (b *BackgroundService) validation1(payment models.Payment) bool {
 
 	//items len validation
 	if len(payment.Items) == 0 {
@@ -106,7 +107,7 @@ func (b *BackgroundService) validation1(payment storage.Payment) bool {
 	return true
 }
 
-func (b *BackgroundService) validation2(payment storage.Payment) bool {
+func (b *BackgroundService) validation2(payment models.Payment) bool {
 	if payment.Amount >= 88005553535 {
 		log.Error().Msg("Error. Validation2")
 		return false

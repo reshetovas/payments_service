@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"os"
+	"payments_service/models"
 	"payments_service/storage"
 	"time"
 
@@ -29,10 +30,10 @@ type PaymentFile struct {
 }
 
 type ParseService struct {
-	storage storage.StorageActions
+	storage storage.PaymentStorageActions
 }
 
-func NewParseService(storage storage.StorageActions) *ParseService {
+func NewParseService(storage storage.PaymentStorageActions) *ParseService {
 	return &ParseService{
 		storage: storage,
 	}
@@ -77,7 +78,7 @@ func (p ParseService) savePaymentToDB(payment PaymentData) error {
 
 	createdAt := time.Now()
 
-	paymentInput := storage.Payment{
+	paymentInput := models.Payment{
 		Amount:      payment.Total_Amount,
 		Description: "Imported from JSON",
 		CreatedAt:   createdAt,
@@ -97,7 +98,7 @@ func (p ParseService) savePaymentToDB(payment PaymentData) error {
 	// fmt.Println("start creating items")
 	// Добавляем товары в БД
 	for _, item := range payment.Items {
-		err = p.storage.CreateItem(storage.Item{
+		err = p.storage.CreateItem(models.Item{
 			PaymentID: paymentID,
 			Name:      item.Name,
 			Price:     item.Price,
