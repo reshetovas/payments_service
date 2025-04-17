@@ -21,7 +21,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 # Копируем весь проект
-COPY . .
+COPY . ./
 
 # Сборка проекта
 RUN go build -o payments_service .

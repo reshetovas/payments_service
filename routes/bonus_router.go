@@ -25,6 +25,7 @@ func (bp *BonusRoutes) BonusRouter() *mux.Router {
 	r.HandleFunc("/bonus", bp.handler.CreateBonus).Methods("POST")
 	r.HandleFunc("/bonuses", bp.handler.GetBonus).Methods("GET")
 	r.HandleFunc("/bonus", bp.handler.UpdateBonus).Methods("PUT") // Исправлено с UPDATE на PUT
+	r.HandleFunc("/bonus/{id}", bp.handler.GetBonusByID).Methods("GET")
 
 	return r
 }

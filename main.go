@@ -20,7 +20,6 @@ import (
 	"payments_service/services"
 	"payments_service/storage"
 
-	"github.com/gorilla/mux"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/pressly/goose/v3"
 	"github.com/redis/go-redis/v9"
@@ -77,16 +76,17 @@ func main() {
 	}
 
 	cacheType := config.CacheType
-	fmt.Println(cacheType)
+	log.Info().Msgf("cache type: %s", cacheType)
+	log.Info().Msgf("Config: %v", config)
 
 	// Инициализация зависимостей
 	paymentStorage := storage.NewPaymentStorage(db)
 	bonusStorage := storage.NewBonusStorage(db)
 	cachePayment := storage.NewPaymentCache(paymentStorage, cacheType, redisClient)
-	//to do bonuses
+	cacheBonus := storage.NewBonusCache(bonusStorage, cacheType, redisClient)
 	currencyService := currency_service.NewCurrencyAPI("https://api.exchangerate-api.com/v4")
 	paymentService := services.NewPaymentService(cachePayment, currencyService)
-	bonusService := services.NewBonusService(bonusStorage)
+	bonusService := services.NewBonusService(cacheBonus)
 	parse := services.NewParseService(paymentStorage)
 	paymentHandler := handlers.NewPaymentHandler(paymentService, parse)
 	bonusHandler := handlers.NewBonusHandler(bonusService)
@@ -113,15 +113,7 @@ func main() {
 	}()
 
 	// Настройка маршрутов
-	mainRouter := mux.NewRouter()
-
-	paymentRouter := paymentRoutes.PaymentRouter()
-	bonusRouter := bonusRoutes.BonusRouter()
-
-	mainRouter.PathPrefix("/payment").Handler(paymentRouter)
-	mainRouter.PathPrefix("/payments").Handler(paymentRouter)
-	mainRouter.PathPrefix("/bonus").Handler(bonusRouter)
-	mainRouter.PathPrefix("/bonuses").Handler(bonusRouter)
+	mainRouter := routes.MainRouter(paymentRoutes, bonusRoutes)
 
 	// Настройка HTTP-сервера
 	server := &http.Server{

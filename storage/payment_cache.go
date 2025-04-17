@@ -15,15 +15,11 @@ import (
 )
 
 type PaymentCache struct {
-	storage       PaymentStorageActions
-	cacheType     string
-	redis         *redis.Client
-	InMemoryCashe InMemoryCashe
-}
-
-type InMemoryCashe struct {
-	data  map[string]string
-	mutex sync.RWMutex //for blocking all struct
+	storage   PaymentStorageActions
+	cacheType string
+	redis     *redis.Client
+	data      map[string]string
+	mutex     sync.RWMutex //for blocking all struct
 }
 
 func NewPaymentCache(storage PaymentStorageActions, cacheType string, redis *redis.Client) *PaymentCache {
@@ -31,6 +27,7 @@ func NewPaymentCache(storage PaymentStorageActions, cacheType string, redis *red
 		storage:   storage,
 		cacheType: cacheType,
 		redis:     redis,
+		data:      make(map[string]string),
 	}
 }
 
@@ -52,7 +49,7 @@ func (c *PaymentCache) UpdatePayment(payment models.Payment) error {
 		ctx := context.Background()
 		c.setInRedis(ctx, payment, key)
 	case "memory":
-		c.InMemoryCashe.setInMemory(payment, key)
+		c.setInMemory(payment, key)
 	}
 
 	return c.storage.UpdatePayment(payment)
@@ -69,7 +66,7 @@ func (c *PaymentCache) PartialUpdatePayment(id int, updates map[string]interface
 			log.Error().Err(err).Msgf("Error redis.Del(ctx, %s)", key)
 		}
 	case "memory":
-		delete(c.InMemoryCashe.data, key)
+		delete(c.data, key)
 	}
 
 	return c.storage.PartialUpdatePayment(id, updates)
@@ -87,7 +84,7 @@ func (c *PaymentCache) DeletePayment(id int) error {
 			log.Error().Err(err).Msgf("Error redis.Del(ctx, %s)", key)
 		}
 	case "memory":
-		delete(c.InMemoryCashe.data, key)
+		delete(c.data, key)
 	}
 
 	return c.storage.DeletePayment(id)
@@ -108,7 +105,7 @@ func (c *PaymentCache) GetPaymentByID(id int) (models.Payment, error) {
 		}
 	case "memory":
 		log.Debug().Msg("Get Case = memory, is done")
-		payment, err := c.InMemoryCashe.getInMemory(key)
+		payment, err := c.getInMemory(key)
 		if err == nil {
 			return payment, err
 		}
@@ -125,9 +122,9 @@ func (c *PaymentCache) GetPaymentByID(id int) (models.Payment, error) {
 		c.setInRedis(ctx, p, key)
 	case "memory":
 		log.Debug().Msg("Set Case = memory, is done")
-		c.InMemoryCashe.setInMemory(p, key)
+		c.setInMemory(p, key)
 	}
-	fmt.Println(c.InMemoryCashe.data)
+	log.Info().Msgf("memory: %v", c.data)
 	return p, nil
 }
 
@@ -145,12 +142,16 @@ func (c *PaymentCache) GetPendingPayments() ([]models.Payment, error) {
 }
 
 // /
-func (i *InMemoryCashe) getInMemory(key string) (models.Payment, error) {
+func (c *PaymentCache) getInMemory(key string) (models.Payment, error) {
 	log.Info().Msg("getInMemory called")
-	i.mutex.RLock()
-	defer i.mutex.RUnlock()
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
 
-	val, ok := i.data[key]
+	if c.data == nil {
+		return models.Payment{}, errors.New("not found")
+	}
+
+	val, ok := c.data[key]
 	if !ok {
 		return models.Payment{}, errors.New("not found")
 	}
@@ -164,13 +165,13 @@ func (i *InMemoryCashe) getInMemory(key string) (models.Payment, error) {
 	return p, nil
 }
 
-func (i *InMemoryCashe) setInMemory(payment models.Payment, key string) {
-	log.Info().Msg("getInMemory called")
-	i.mutex.Lock()
-	defer i.mutex.RUnlock()
+func (c *PaymentCache) setInMemory(payment models.Payment, key string) {
+	log.Info().Msg("setInMemory called")
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	value, _ := json.Marshal(payment)
 
-	i.data[key] = string(value)
+	c.data[key] = string(value)
 }
 
 func (c *PaymentCache) getInRedis(ctx context.Context, key string) (models.Payment, error) {

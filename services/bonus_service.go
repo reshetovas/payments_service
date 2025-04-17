@@ -59,3 +59,12 @@ func (bs *BonusService) UpdateBonus(bonus models.Bonus) error {
 
 	return bs.storage.UpdateBonus(storageBonus)
 }
+
+func (bs *BonusService) GetBonusByID(id int) (models.Bonus, error) {
+	bonus, err := bs.storage.GetBonusByID(id)
+	if err != nil {
+		return models.Bonus{}, err
+	}
+
+	return bonus, nil
+}
