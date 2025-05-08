@@ -13,6 +13,6 @@ CREATE TABLE items (
 
 -- +goose Down
 ALTER TABLE payments DROP COLUMN shop_id;
-ALTER TABLE payments DROP COLUMN addrea;
+ALTER TABLE payments DROP COLUMN address;
 DROP TABLE items;
 

@@ -1,6 +1,9 @@
 package middleware
 
 import (
+	"bufio"
+	"fmt"
+	"net"
 	"net/http"
 	"time"
 
@@ -9,12 +12,34 @@ import (
 
 type responseWriter struct {
 	http.ResponseWriter
-	statusCode int
+	statusCode  int
+	wroteHeader bool
 }
 
 func (rw *responseWriter) WriteHeader(code int) {
+	if rw.statusCode != 0 {
+		return
+	}
+
 	rw.statusCode = code
 	rw.ResponseWriter.WriteHeader(code)
+	rw.wroteHeader = true
+}
+
+func (rw *responseWriter) Write(b []byte) (int, error) {
+	if !rw.wroteHeader {
+		rw.WriteHeader(http.StatusOK)
+	}
+
+	return rw.ResponseWriter.Write(b)
+}
+
+func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	hj, ok := rw.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, fmt.Errorf("underlying ResponseWriter does not implement http.Hijacker")
+	}
+	return hj.Hijack()
 }
 
 func LoggingMiddleware(next http.Handler) http.Handler {
@@ -23,18 +48,23 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 
 		rw := &responseWriter{
 			ResponseWriter: w,
-			statusCode:     http.StatusOK,
+			statusCode:     0,
 		}
 
 		next.ServeHTTP(rw, r)
+
+		status := rw.statusCode
+		if status == 0 {
+			status = 101 //Websocket Upgrade status
+		}
 
 		duration := time.Since(start)
 
 		log.Info().
 			Str("method", r.Method).
 			Str("url", r.URL.String()).
-			Str("remote_addr", r.UserAgent()).
-			Int("status", rw.statusCode).
+			Str("remote_addr", r.RemoteAddr).
+			Int("status", status).
 			Dur("duration", duration).
 			Msg("Handled request")
 
