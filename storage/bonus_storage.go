@@ -24,6 +24,7 @@ type BonusStorageActions interface {
 	GetBonuses() ([]models.Bonus, error)
 	CreateBonus(payment models.Bonus) (int, error)
 	UpdateBonus(payment models.Bonus) error
+	GetBonusByID(id int) (models.Bonus, error)
 }
 
 func (bs *BonusStorage) GetBonuses() ([]models.Bonus, error) {
@@ -87,4 +88,22 @@ func (bs *BonusStorage) UpdateBonus(bonus models.Bonus) error {
 		return errors.New("bonus not found")
 	}
 	return nil
+}
+
+func (bs *BonusStorage) GetBonusByID(id int) (models.Bonus, error) {
+	log.Info().Msg("GetBonusByID called in storage")
+
+	//query to db
+	var b models.Bonus
+	row := bs.dbProperty.QueryRow("SELECT id, payment_id, amount FROM bonuses where id = ?", id)
+
+	err := row.Scan(&b.ID, &b.PaymentID, &b.Amount)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return models.Bonus{}, errors.New("payments not found")
+		}
+		return models.Bonus{}, err
+	}
+
+	return b, nil
 }

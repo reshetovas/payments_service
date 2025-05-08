@@ -22,3 +22,9 @@ type Item struct {
 	Price     float32
 	Quantity  int
 }
+
+type Bonus struct {
+	ID        int
+	PaymentID int
+	Amount    float32
+}

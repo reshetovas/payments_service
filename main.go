@@ -20,9 +20,9 @@ import (
 	"payments_service/services"
 	"payments_service/storage"
 
-	"github.com/gorilla/mux"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/pressly/goose/v3"
+	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
 )
 
@@ -57,17 +57,36 @@ func main() {
 		log.Fatal().Err(err).Msg("Migration failed")
 	}
 
-	// Проверка соединения
+	// DB check
 	if err = db.Ping(); err != nil {
 		log.Fatal().Err(err).Msg("error db ping")
 	}
 
+	//Redis init
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" {
+		redisAddr = "localhost:6379"
+	}
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: redisAddr,
+	})
+
+	if _, err := redisClient.Ping(ctx).Result(); err != nil {
+		log.Fatal().Err(err).Msg("Redis connection failed")
+	}
+
+	cacheType := config.CacheType
+	log.Info().Msgf("cache type: %s", cacheType)
+	log.Info().Msgf("Config: %v", config)
+
 	// Инициализация зависимостей
 	paymentStorage := storage.NewPaymentStorage(db)
 	bonusStorage := storage.NewBonusStorage(db)
+	cachePayment := storage.NewPaymentCache(paymentStorage, cacheType, redisClient)
+	cacheBonus := storage.NewBonusCache(bonusStorage, cacheType, redisClient)
 	currencyService := currency_service.NewCurrencyAPI("https://api.exchangerate-api.com/v4")
-	paymentService := services.NewPaymentService(paymentStorage, currencyService)
-	bonusService := services.NewBonusService(bonusStorage)
+	paymentService := services.NewPaymentService(cachePayment, currencyService)
+	bonusService := services.NewBonusService(cacheBonus)
 	parse := services.NewParseService(paymentStorage)
 	paymentHandler := handlers.NewPaymentHandler(paymentService, parse)
 	bonusHandler := handlers.NewBonusHandler(bonusService)
@@ -94,15 +113,7 @@ func main() {
 	}()
 
 	// Настройка маршрутов
-	mainRouter := mux.NewRouter()
-
-	paymentRouter := paymentRoutes.PaymentRouter()
-	bonusRouter := bonusRoutes.BonusRouter()
-
-	mainRouter.PathPrefix("/payment").Handler(paymentRouter)
-	mainRouter.PathPrefix("/payments").Handler(paymentRouter)
-	mainRouter.PathPrefix("/bonus").Handler(bonusRouter)
-	mainRouter.PathPrefix("/bonuses").Handler(bonusRouter)
+	mainRouter := routes.MainRouter(paymentRoutes, bonusRoutes)
 
 	// Настройка HTTP-сервера
 	server := &http.Server{

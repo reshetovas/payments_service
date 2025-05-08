@@ -5,7 +5,9 @@ import (
 	"net/http"
 	"payments_service/models"
 	"payments_service/services"
+	"strconv"
 
+	"github.com/gorilla/mux"
 	"github.com/rs/zerolog/log"
 )
 
@@ -77,4 +79,27 @@ func (bh *BonusHandler) UpdateBonus(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+}
+
+func (bh *BonusHandler) GetBonusByID(w http.ResponseWriter, r *http.Request) {
+	log.Info().Msg("Handler GetBonusByID")
+	// ID from path
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+
+	payment, err := bh.service.GetBonusByID(id)
+	if err != nil {
+		log.Error().Err(err).Msg("Error GetBonusInCurrency")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Возвращаем результат
+	w.Header().Set("Content-type", "application/json")
+	json.NewEncoder(w).Encode(payment)
 }
