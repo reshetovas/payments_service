@@ -2,8 +2,10 @@ package services
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
+	"payments_service/internal/ws"
 	"payments_service/storage"
 
 	"payments_service/models"
@@ -18,15 +20,17 @@ type CurrencyClient interface {
 type PaymentService struct {
 	storage         storage.PaymentStorageActions
 	currencyService CurrencyClient
+	hub             *ws.Hub
 }
 
 // function for creating object (ekzemplyar)
 /*StorageActions - interface => to use NewPaymentService struct shoul include interface function
 here NewPaymentService must have input struct with inetrface StorageActions*/
-func NewPaymentService(storage storage.PaymentStorageActions, currencyService CurrencyClient) *PaymentService {
+func NewPaymentService(storage storage.PaymentStorageActions, currencyService CurrencyClient, hub *ws.Hub) *PaymentService {
 	return &PaymentService{
 		storage:         storage,
 		currencyService: currencyService,
+		hub:             hub,
 	}
 }
 
@@ -44,12 +48,19 @@ func (s *PaymentService) CreatePayment(payment models.Payment) (int, error) {
 
 	storagePayment := models.Payment{
 		ID:          payment.ID,
+		UserID:      payment.UserID,
 		Amount:      payment.Amount,
 		Description: payment.Description,
 		CreatedAt:   payment.CreatedAt,
 	}
 
-	return s.storage.CreatePayment(storagePayment)
+	id, err := s.storage.CreatePayment(storagePayment)
+	if err != nil {
+		return 0, err
+	}
+
+	s.hub.SendToUser(storagePayment.UserID, []byte(fmt.Sprintf("New payment with id: %d", storagePayment.ID)))
+	return id, err
 }
 
 // method get

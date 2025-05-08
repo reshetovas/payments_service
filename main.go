@@ -15,7 +15,9 @@ import (
 	"payments_service/config"
 	"payments_service/external/currency_service"
 	"payments_service/handlers"
+	"payments_service/internal/ws"
 	"payments_service/logger"
+	"payments_service/middleware"
 	"payments_service/routes"
 	"payments_service/services"
 	"payments_service/storage"
@@ -79,20 +81,38 @@ func main() {
 	log.Info().Msgf("cache type: %s", cacheType)
 	log.Info().Msgf("Config: %v", config)
 
+	//token secret
+	jwtSecret := []byte(os.Getenv("JWT_SECRET"))
+
+	//auth middleware
+
 	// Инициализация зависимостей
 	paymentStorage := storage.NewPaymentStorage(db)
 	bonusStorage := storage.NewBonusStorage(db)
+	userStorage := storage.NewUserStorage(db)
+	wsHub := ws.NewHub()
+
 	cachePayment := storage.NewPaymentCache(paymentStorage, cacheType, redisClient)
 	cacheBonus := storage.NewBonusCache(bonusStorage, cacheType, redisClient)
+
 	currencyService := currency_service.NewCurrencyAPI("https://api.exchangerate-api.com/v4")
-	paymentService := services.NewPaymentService(cachePayment, currencyService)
+	paymentService := services.NewPaymentService(cachePayment, currencyService, wsHub)
 	bonusService := services.NewBonusService(cacheBonus)
 	parse := services.NewParseService(paymentStorage)
+	token := services.NewTokenStruct(jwtSecret)
+	userService := services.NewUserService(userStorage, token)
+	authorization := middleware.NewAuthMiddleware(token) //authorization middleware
+
 	paymentHandler := handlers.NewPaymentHandler(paymentService, parse)
 	bonusHandler := handlers.NewBonusHandler(bonusService)
+	userHandler := handlers.NewUserHandler(userService)
+	wsHandler := handlers.NewWSHandler(wsHub)
+
 	bckgrnd_serv := background_service.NewBackgroundService(paymentStorage)
-	paymentRoutes := routes.NewPaymentRoutes(paymentHandler)
+	paymentRoutes := routes.NewPaymentRoutes(paymentHandler, authorization)
 	bonusRoutes := routes.NewBonusRoutes(bonusHandler)
+	userRoutes := routes.NewUserRoutes(userHandler)
+	wsRouter := routes.NewWSRoutes(wsHandler, authorization)
 
 	// Запуск мониторинга директории в отдельной горутине
 	dirName := "./files"
@@ -113,7 +133,7 @@ func main() {
 	}()
 
 	// Настройка маршрутов
-	mainRouter := routes.MainRouter(paymentRoutes, bonusRoutes)
+	mainRouter := routes.MainRouter(paymentRoutes, bonusRoutes, userRoutes, wsRouter)
 
 	// Настройка HTTP-сервера
 	server := &http.Server{

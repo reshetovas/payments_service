@@ -8,13 +8,15 @@ import (
 )
 
 type PaymentRoutes struct {
-	handler *handlers.PaymentHandler
+	handler       *handlers.PaymentHandler
+	authorization *middleware.AuthMiddleware
 }
 
 // function for creating object (ekzemplyar)
-func NewPaymentRoutes(handler *handlers.PaymentHandler) *PaymentRoutes {
+func NewPaymentRoutes(handler *handlers.PaymentHandler, auth *middleware.AuthMiddleware) *PaymentRoutes {
 	return &PaymentRoutes{
-		handler: handler,
+		handler:       handler,
+		authorization: auth,
 	}
 }
 
@@ -22,6 +24,7 @@ func (p *PaymentRoutes) PaymentRouter() *mux.Router {
 	r := mux.NewRouter()
 
 	r.Use(middleware.LoggingMiddleware)
+	r.Use(p.authorization.JWTAuthMiddleware)
 
 	r.HandleFunc("/payment", p.handler.CreatePayment).Methods("POST")
 	r.HandleFunc("/payments", p.handler.GetPayments).Methods("GET")

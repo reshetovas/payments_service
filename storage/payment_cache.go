@@ -141,7 +141,7 @@ func (c *PaymentCache) GetPendingPayments() ([]models.Payment, error) {
 	return c.storage.GetPendingPayments()
 }
 
-// /
+// methods for memory
 func (c *PaymentCache) getInMemory(key string) (models.Payment, error) {
 	log.Info().Msg("getInMemory called")
 	c.mutex.RLock()

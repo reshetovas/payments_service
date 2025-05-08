@@ -1,9 +1,12 @@
 package models
 
-import "time"
+import (
+	"time"
+)
 
 type Payment struct {
 	ID          int
+	UserID      int
 	Amount      float32
 	Description string
 	CreatedAt   time.Time
@@ -27,4 +30,11 @@ type Bonus struct {
 	ID        int
 	PaymentID int
 	Amount    float32
+}
+
+type User struct {
+	ID        int
+	Username  string
+	Password  string
+	CreatedAt time.Time
 }

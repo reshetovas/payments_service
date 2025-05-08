@@ -29,6 +29,7 @@ func (b *BackgroundService) CheckStatuses(ctx context.Context) error {
 
 LOOP:
 	for {
+		// signal of closing or signal ticker (every 30 seconds)
 		select {
 		case <-ctx.Done():
 			break LOOP
