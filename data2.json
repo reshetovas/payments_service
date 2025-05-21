@@ -1,3 +1,5 @@
 {"payment": {"date": "2024-12-22T13:01:39", "shop_id": 331256, "address": "г. Москва, ул. Первомайская, д. 15", "total_amount": 5661, "items": [{"name": "Круассан", "price": 738, "quantity": 2}, {"name": "Суп дня", "price": 596, "quantity": 3}, {"name": "Тост с авокадо", "price": 371, "quantity": 3}, {"name": "Салат Цезарь", "price": 642, "quantity": 2}]}}
 {"payment": {"date": "2024-12-26T13:01:39", "shop_id": 331256, "address": "г. Москва, ул. Первомайская, д. 15", "total_amount": 788, "items": [{"name": "Чай", "price": 394, "quantity": 2}]}}
 {"payment": {"date": "2024-12-26T13:01:39", "shop_id": 751771, "address": "г. Москва, ул. Пролетарская, д. 5", "total_amount": 1767, "items": [{"name": "Салат Цезарь", "price": 589, "quantity": 3}]}}
+
+

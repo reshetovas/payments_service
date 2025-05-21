@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"github.com/rs/zerolog/log"
 	"net/http"
 	"strings"
 
@@ -28,6 +29,7 @@ func (a AuthMiddleware) JWTAuthMiddleware(next http.Handler) http.Handler {
 
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		tokenString = strings.TrimSpace(tokenString)
+		log.Debug().Msgf("tokenString: %s", tokenString)
 
 		//check
 		claims, err := a.service.ParseJWT(tokenString)
@@ -37,9 +39,8 @@ func (a AuthMiddleware) JWTAuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		//input UserID in context
-		ctx := ctxutils.WithUserID(r.Context(), claims.UserID)
+		ctx := ctxutils.WithUserID(r.Context(), claims.User_id)
 		r = r.WithContext(ctx)
-
 		next.ServeHTTP(w, r)
 	})
 }

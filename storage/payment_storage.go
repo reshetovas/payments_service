@@ -70,8 +70,8 @@ func (s *PaymentStorage) CreatePayment(payment models.Payment) (int, error) {
 	log.Info().Msg("CreatePayment called in storage")
 
 	query := `INSERT INTO payments (amount, description, 
-	created_at, currency, shop_id, address) VALUES (?, ?, ?, ?, ?, ?)`
-	result, err := s.dbProperty.Exec(query, payment.Amount, payment.Description, payment.CreatedAt, payment.Currency, payment.ShopID, payment.Address)
+	created_at, currency, shop_id, address, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)`
+	result, err := s.dbProperty.Exec(query, payment.Amount, payment.Description, payment.CreatedAt, payment.Currency, payment.ShopID, payment.Address, payment.UserID)
 	if err != nil {
 		if err.Error() == "UNIQUE constraint failed: payments.id" {
 			return 0, errors.New("payment with this id already exists")

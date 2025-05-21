@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"github.com/rs/zerolog/log"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -18,7 +19,7 @@ func NewTokenStruct(secret []byte) *TokenStruct {
 }
 
 type Claims struct {
-	UserID int
+	User_id int
 	jwt.RegisteredClaims
 }
 
@@ -37,12 +38,14 @@ func (t TokenStruct) ParseJWT(tokenString string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		return t.secret, nil
 	})
+	log.Debug().Msgf("token: %+v", token)
 
 	if err != nil {
 		return nil, err
 	}
 
 	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
+		log.Debug().Msgf("claims: %+v", claims)
 		return claims, nil
 	}
 

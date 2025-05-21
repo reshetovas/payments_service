@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"payments_service/ctxutils"
 	"strconv"
 
 	"payments_service/models"
@@ -38,6 +39,16 @@ func (h *PaymentHandler) CreatePayment(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&payment)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+
+	if payment.UserID == 0 {
+		userID, ok := ctxutils.GetUserID(r.Context())
+		log.Info().Msgf("Client %d identified", userID)
+		if !ok {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		payment.UserID = userID
 	}
 
 	id, err := h.service.CreatePayment(payment)
