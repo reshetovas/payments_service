@@ -41,10 +41,10 @@ func main() {
 
 	// Контекст с отменой для graceful shutdown -
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel() // when func main is over - all go riutines will finish
+	defer cancel() // when func main is over - all go routines will finish
 
 	// Обработчик сигналов для завершения
-	sigChan := make(chan os.Signal, 1) //create channel
+	sigChan := make(chan os.Signal, 1) //create chanel
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
 	// Подключение к БД
@@ -91,6 +91,7 @@ func main() {
 	bonusStorage := storage.NewBonusStorage(db)
 	userStorage := storage.NewUserStorage(db)
 	wsHub := ws.NewHub()
+	go wsHub.Run()
 
 	cachePayment := storage.NewPaymentCache(paymentStorage, cacheType, redisClient)
 	cacheBonus := storage.NewBonusCache(bonusStorage, cacheType, redisClient)
@@ -133,12 +134,14 @@ func main() {
 	}()
 
 	// Настройка маршрутов
-	mainRouter := routes.MainRouter(paymentRoutes, bonusRoutes, userRoutes, wsRouter)
+	mainHttpRouter := routes.MainRouter(paymentRoutes, bonusRoutes, userRoutes)
+	mainWSRouter := routes.MainWSRouter(wsRouter)
+	fmt.Printf("mainWSRouter: %+v\n", mainWSRouter)
 
 	// Настройка HTTP-сервера
-	server := &http.Server{
+	httpServer := &http.Server{
 		Addr:    ":8080",
-		Handler: mainRouter,
+		Handler: mainHttpRouter,
 	}
 
 	// Запуск HTTP-сервера в горутине
@@ -146,8 +149,24 @@ func main() {
 	go func() {
 		defer wg.Done()
 		log.Info().Msg("The server is running on port: 8080...")
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal().Err(err).Msg("Error http server")
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatal().Err(err).Msg("Error HTTP server")
+		}
+	}()
+
+	//настройка WS сервера
+	wsServer := &http.Server{
+		Addr:    ":8081",
+		Handler: mainWSRouter,
+	}
+
+	// Запуск WS-сервера в горутине
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		log.Info().Msg("The server is running on port: 8081...")
+		if err := wsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatal().Err(err).Msg("Error WebSocket server")
 		}
 	}()
 
@@ -172,7 +191,10 @@ func main() {
 	Cервер будет пытаться завершить свою работу в течение 5 секунд.
 	Если сервер не успевает завершить все запросы,
 	он завершится принудительно по истечении этого времени */
-	if err := server.Shutdown(shutdownCtx); err != nil {
+	if err := httpServer.Shutdown(shutdownCtx); err != nil {
+		log.Printf("Ошибка при остановке сервера: %v", err)
+	}
+	if err := wsServer.Shutdown(shutdownCtx); err != nil {
 		log.Printf("Ошибка при остановке сервера: %v", err)
 	}
 

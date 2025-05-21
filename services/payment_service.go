@@ -23,9 +23,6 @@ type PaymentService struct {
 	hub             *ws.Hub
 }
 
-// function for creating object (ekzemplyar)
-/*StorageActions - interface => to use NewPaymentService struct shoul include interface function
-here NewPaymentService must have input struct with inetrface StorageActions*/
 func NewPaymentService(storage storage.PaymentStorageActions, currencyService CurrencyClient, hub *ws.Hub) *PaymentService {
 	return &PaymentService{
 		storage:         storage,
@@ -59,7 +56,9 @@ func (s *PaymentService) CreatePayment(payment models.Payment) (int, error) {
 		return 0, err
 	}
 
-	s.hub.SendToUser(storagePayment.UserID, []byte(fmt.Sprintf("New payment with id: %d", storagePayment.ID)))
+	msg := fmt.Sprintf("Создан платёж id:%d\nдата: %v\nсумма %d\nописание платежа %s", id, storagePayment.CreatedAt, storagePayment.Amount, storagePayment.Description)
+	s.hub.SendToUser(storagePayment.UserID, []byte(msg))
+
 	return id, err
 }
 

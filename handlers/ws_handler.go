@@ -29,6 +29,7 @@ func (ws *WSHandler) WebSocketHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// 1. Извлечение userID из контекста
 		userID, ok := ctxutils.GetUserID(r.Context())
+		log.Info().Msgf("Client %d identified", userID)
 		if !ok {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
@@ -49,27 +50,12 @@ func (ws *WSHandler) WebSocketHandler() http.HandlerFunc {
 			http.Error(w, "Failed to upgrade", http.StatusInternalServerError)
 			return
 		}
-		defer conn.Close()
 
 		// Регистрация пользователя в хабе
-		ws.hub.Register(userID, conn)
-		log.Info().Msgf("User %d connected to WebSocket", userID)
+		client := ws.hub.Register(userID, conn)
 
-		go func() {
-			defer func() {
-				//Удаление пользователя из хаба при закрытии соединения
-				ws.hub.Unregister(userID)
-				conn.Close()
-			}()
-
-			for {
-				if _, _, err := conn.NextReader(); err != nil {
-					log.Warn().Err(err).Msgf("WebSocket disconnected: user %d", userID)
-					break
-				}
-			}
-		}()
-
+		go client.ReadPump()
+		go client.WritePump()
 	}
 }
 

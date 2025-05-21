@@ -2,7 +2,9 @@ package middleware
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"time"
@@ -46,6 +48,19 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
+		var requestBody string
+		if r.Body != nil {
+			// Считываем тело
+			bodyBytes, err := io.ReadAll(r.Body)
+			if err == nil {
+				requestBody = string(bodyBytes)
+				// Восстанавливаем тело обратно
+				r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+			} else {
+				requestBody = fmt.Sprintf("error reading body: %v", err)
+			}
+		}
+
 		rw := &responseWriter{
 			ResponseWriter: w,
 			statusCode:     0,
@@ -63,6 +78,7 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 		log.Info().
 			Str("method", r.Method).
 			Str("url", r.URL.String()).
+			Str("body", requestBody).
 			Str("remote_addr", r.RemoteAddr).
 			Int("status", status).
 			Dur("duration", duration).

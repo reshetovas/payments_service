@@ -22,3 +22,8 @@ vendor/
 .DS_Store
 .idea/
 .vscode/
+
+# Файлы окружения
+.env
+.env.*
+!.env.example

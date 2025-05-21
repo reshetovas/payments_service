@@ -5,17 +5,17 @@ import (
 )
 
 type Payment struct {
-	ID          int
-	UserID      int
-	Amount      float32
-	Description string
-	CreatedAt   time.Time
-	Currency    string
-	ShopID      int
-	Address     string
-	State       string
-	Attempts    int
-	Items       []Item
+	ID          int       `json:"id"`
+	UserID      int       `json:"user_id"`
+	Amount      float32   `json:"amount"`
+	Description string    `json:"description"`
+	CreatedAt   time.Time `json:"created_at"`
+	Currency    string    `json:"currency"`
+	ShopID      int       `json:"shop_id"`
+	Address     string    `json:"address"`
+	State       string    `json:"state"`
+	Attempts    int       `json:"attempts"`
+	Items       []Item    `json:"items"`
 }
 
 type Item struct {
